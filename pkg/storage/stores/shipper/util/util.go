@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"time"
 
 	util_log "github.com/cortexproject/cortex/pkg/util/log"
 	"github.com/go-kit/log/level"
@@ -72,11 +73,13 @@ type IndexStorageClient interface {
 
 // GetFileFromStorage downloads a file from storage to given location.
 func GetFileFromStorage(ctx context.Context, storageClient IndexStorageClient, tableName, fileName, destination string, sync bool) error {
+	start := time.Now()
 	readCloser, err := storageClient.GetFile(ctx, tableName, fileName)
 	if err != nil {
 		return err
 	}
 
+	downloaded := time.Now().Sub(start)
 	defer func() {
 		if err := readCloser.Close(); err != nil {
 			level.Error(util_log.Logger)
@@ -106,7 +109,7 @@ func GetFileFromStorage(ctx context.Context, storageClient IndexStorageClient, t
 		return err
 	}
 
-	level.Info(util_log.Logger).Log("msg", fmt.Sprintf("downloaded file %s from table %s", fileName, tableName))
+	level.Info(util_log.Logger).Log("msg", fmt.Sprintf("downloaded file %s from table %s to %s", fileName, tableName, destination), "download", downloaded, "decompress", time.Now().Sub(start)-downloaded)
 	if sync {
 		return f.Sync()
 	}
